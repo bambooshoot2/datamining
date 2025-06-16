@@ -1,21 +1,21 @@
-# 导入需要用到的库
-# mindspore用于搭建简单的神经网络模型
 import mindspore
 import mindspore.nn as nn
 import numpy as np
 from mindspore import dataset as ds
-# pandas用于读取数据
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score
 from sklearn.preprocessing import MinMaxScaler
-from model import Network
+from imblearn.over_sampling import SMOTE
+from model import ImprovedNetwork
 from load_data import Diabetes_dataset
+
+# 设置随机种子保证可重复性
+mindspore.set_seed(42)
 
 
 def datapipe(dataset, batch_size):
-    dataset = dataset.batch(batch_size)
-    return dataset
+    return dataset.batch(batch_size)
 
 
 def forward_fn(data, label):
@@ -24,7 +24,6 @@ def forward_fn(data, label):
     return loss, logits
 
 
-# 3. Define function of one-step training
 def train_step(data, label):
     (loss, _), grads = grad_fn(data, label)
     optimizer(grads)
@@ -34,95 +33,142 @@ def train_step(data, label):
 def train(model, dataset):
     size = dataset.get_dataset_size()
     model.set_train()
+    total_loss = 0
+
     for batch, (data, label) in enumerate(dataset.create_tuple_iterator()):
         loss = train_step(data, label)
+        total_loss += loss.asnumpy()
 
         if batch % 100 == 0:
-            loss, current = loss.asnumpy(), batch
-            print(f"loss: {loss:>7f}  [{current:>3d}/{size:>3d}]")
+            current_loss = loss.asnumpy()
+            print(f"批次: {batch:>3d}/{size:>3d} | 损失: {current_loss:>7f}")
+
+    return total_loss / size
 
 
 def test(model, dataset, loss_fn, best_f1):
-    num_batches = dataset.get_dataset_size()
     model.set_train(False)
-    total, test_loss, correct = 0, 0, 0
-    sum_pred = []
-    sum_label = []
+    all_preds = []
+    all_labels = []
+    test_loss = 0
+    num_batches = 0
+
     for data, label in dataset.create_tuple_iterator():
         pred = model(data)
-        total += len(data)
-        test_loss += loss_fn(pred, label).asnumpy()
-        pred = np.where(pred > 0.5, 1, 0)
-        correct += (pred == label).sum()
-        sum_pred.append(pred)
-        sum_label.append(label)
+        # 计算损失时使用原始输出(浮点数)
+        batch_loss = loss_fn(pred, label.astype(mindspore.float32))
+        test_loss += batch_loss.asnumpy()
+        num_batches += 1
+
+        # 转换为整数用于计算指标
+        pred_labels = (pred > 0.5).astype(mindspore.int32)
+        all_preds.append(pred_labels.asnumpy())
+        all_labels.append(label.asnumpy())
+
+    all_preds = np.concatenate(all_preds)
+    all_labels = np.concatenate(all_labels)
+
     test_loss /= num_batches
-    correct /= total
-    f1_sum = f1_score([int(x) for x in sum_label[0]], sum_pred[0])
-    print(
-        f"Test: \n Accuracy: {(100 * correct):>0.1f}%, Avg loss: {test_loss:>8f}, F1 score:{f1_sum:>2f}  \n")
-    if f1_sum > best_f1:
-        best_f1 = f1_sum
-        mindspore.save_checkpoint(model, "model.ckpt")
-        print("----------------------------")
-        print("Find new best f1_score model")
-        print("Saved Model to model.ckpt")
-        print("----------------------------")
+    accuracy = (all_preds == all_labels).mean()
+    f1 = f1_score(all_labels, all_preds)
+
+    print(f"\n测试结果:")
+    print(f"准确率: {(100 * accuracy):>0.1f}%")
+    print(f"平均损失: {test_loss:>8f}")
+    print(f"F1分数: {f1:>4f}")
+
+    if f1 > best_f1:
+        best_f1 = f1
+        mindspore.save_checkpoint(model, "best_model.ckpt")
+        print("\n保存了新的最佳模型(F1分数提升)")
+
     return best_f1
 
 
-# 设置显示全部列
-pd.set_option('display.max_columns', None)
-# 读取数据
-data = pd.read_csv('diabetes_prediction_dataset.csv')
-# 简单的查看数据
-# print(data)
-# print(data.info())
-# 对性别 吸烟史 两个类别变量进行转换
-gender_map = {'Male': 0,
-              'Female': 1,
-              'Other': 2}
-smoke_map = {'never': 0,
-             'No Info': 1,
-             'current': 2,
-             'former': 3,
-             'ever': 4,
-             'not current': 5}
-data['gender'] = data['gender'].map(gender_map)
-data['smoking_history'] = data['smoking_history'].map(smoke_map)
+if __name__ == "__main__":
+    # 数据加载和预处理
+    pd.set_option('display.max_columns', None)
+    data = pd.read_csv('diabetes_prediction_dataset.csv')
 
-#
-sclaer_columns = ['age', 'bmi', 'HbA1c_level', 'blood_glucose_level']
-train_data, test_data = train_test_split(data, random_state=42)
-scaler = MinMaxScaler()
-train_data[sclaer_columns] = scaler.fit_transform(train_data[sclaer_columns])
-test_data[sclaer_columns] = scaler.transform(test_data[sclaer_columns])
-train_data = Diabetes_dataset(train_data)
-test_data = Diabetes_dataset(test_data)
-#
-# # 查看转换是否成功
-train_data = ds.GeneratorDataset(source=train_data, column_names=['feature', 'label'])
-test_data = ds.GeneratorDataset(source=test_data, column_names=['feature', 'label'])
+    # 特征工程和预处理
+    gender_map = {'Female': 0, 'Male': 1, 'Other': 2}
+    smoke_map = {'never': 0, 'former': 1, 'current': 2,
+                 'not current': 3, 'ever': 4, 'No Info': 5}
 
-#
-# train_data, test_data = data.split([0.8, 0.2])
-#
-train_dataset = datapipe(train_data, 128)
-test_dataset = datapipe(test_data, 1024)
+    data['gender'] = data['gender'].map(gender_map)
+    data['smoking_history'] = data['smoking_history'].map(smoke_map)
 
-model = Network()
-# print(model)
+    # 处理缺失值
+    data.fillna(data.median(), inplace=True)
 
-loss_fn = nn.BCELoss()
-optimizer = nn.Adam(model.trainable_params(), learning_rate=0.001)
+    # 分割数据
+    X = data.drop('diabetes', axis=1)
+    y = data['diabetes']
 
-# 2. Get gradient function
-grad_fn = mindspore.value_and_grad(forward_fn, None, optimizer.parameters, has_aux=True)
+    # 使用SMOTE处理类别不平衡
+    smote = SMOTE(random_state=42)
+    X_res, y_res = smote.fit_resample(X, y)
 
-epochs = 5
-f1_score_record = 0
-for t in range(epochs):
-    print(f"Epoch {t + 1}\n-------------------------------")
-    train(model, train_dataset)
-    f1_score_record = test(model, test_dataset, loss_fn, f1_score_record)
-print("Done!")
+    # 特征归一化
+    sclaer_columns = ['age', 'bmi', 'HbA1c_level', 'blood_glucose_level']
+    scaler = MinMaxScaler()
+    X_res[sclaer_columns] = scaler.fit_transform(X_res[sclaer_columns])
+
+    # 分割训练集和测试集
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_res, y_res, test_size=0.2, random_state=42)
+
+    # 创建数据集
+    train_data = Diabetes_dataset(pd.concat([X_train, y_train], axis=1))
+    test_data = Diabetes_dataset(pd.concat([X_test, y_test], axis=1))
+
+    train_data = ds.GeneratorDataset(source=train_data, column_names=['feature', 'label'])
+    test_data = ds.GeneratorDataset(source=test_data, column_names=['feature', 'label'])
+
+    # 创建数据管道
+    batch_size = 128
+    train_dataset = datapipe(train_data, batch_size)
+    test_dataset = datapipe(test_data, batch_size * 2)
+
+    # 初始化模型
+    model = ImprovedNetwork()
+
+    # 损失函数(带类别权重)
+    pos_weight = mindspore.Tensor([2.0])  # 根据类别分布调整
+    loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+
+    # 优化器
+    initial_lr = 0.001
+    optimizer = nn.Adam(model.trainable_params(), learning_rate=initial_lr)
+
+    # 梯度函数
+    grad_fn = mindspore.value_and_grad(forward_fn, None, optimizer.parameters, has_aux=True)
+
+    # 训练循环
+    epochs = 100
+    best_f1 = 0
+    patience = 5
+    no_improve_epochs = 0
+
+    print("开始训练...")
+    for t in range(epochs):
+        print(f"\n第 {t + 1}/{epochs} 轮训练")
+        print("-------------------------------")
+
+        avg_loss = train(model, train_dataset)
+        print(f"\n第 {t + 1} 轮平均训练损失: {avg_loss:.4f}")
+
+        current_f1 = test(model, test_dataset, loss_fn, best_f1)
+
+        # 早停检查
+        if current_f1 > best_f1:
+            best_f1 = current_f1
+            no_improve_epochs = 0
+        else:
+            no_improve_epochs += 1
+            if no_improve_epochs >= patience:
+                print(f"\n第 {t + 1} 轮后触发早停")
+                break
+
+    print("\n训练完成!")
+    print(f"达到的最佳F1分数: {best_f1:.4f}")

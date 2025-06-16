@@ -1,0 +1,7 @@
+mindspore @ https://ms-release.obs.cn-north-4.myhuaweicloud.com/2.5.0/MindSpore/cpu/x86_64/mindspore-2.5.0-cp39-cp39-win_amd64.whl
+numpy==1.26.4
+pandas==2.3.0
+protobuf==3.20.0
+scikit-learn==1.6.1
+streamlit==1.45.1
+

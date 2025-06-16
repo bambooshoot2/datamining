@@ -114,6 +114,10 @@ if __name__ == "__main__":
     scaler = MinMaxScaler()
     X_res[sclaer_columns] = scaler.fit_transform(X_res[sclaer_columns])
 
+    import joblib
+
+    joblib.dump(scaler, 'scaler.pkl')
+
     # 分割训练集和测试集
     X_train, X_test, y_train, y_test = train_test_split(
         X_res, y_res, test_size=0.2, random_state=42)

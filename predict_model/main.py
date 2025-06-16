@@ -149,7 +149,7 @@ if __name__ == "__main__":
     grad_fn = mindspore.value_and_grad(forward_fn, None, optimizer.parameters, has_aux=True)
 
     # 训练循环
-    epochs = 100
+    epochs = 30
     best_f1 = 0
     patience = 5
     no_improve_epochs = 0

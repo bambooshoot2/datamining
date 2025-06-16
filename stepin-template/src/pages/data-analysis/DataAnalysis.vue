@@ -83,7 +83,7 @@
         <button
             type="submit"
             class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded">
-            提交预测
+            数据分析
         </button>
       </div>
       <div v-if="healthMessage || warnings.length" class="mt-4 p-4 bg-yellow-100 rounded border border-yellow-400">

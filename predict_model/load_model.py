@@ -4,7 +4,7 @@ from model import Network
 
 model = Network()
 
-param_dict = mindspore.load_checkpoint("model.ckpt")
+param_dict = mindspore.load_checkpoint("modelbest/model.ckpt")
 param_not_load, _ = mindspore.load_param_into_net(model, param_dict)
 print(param_not_load)
 

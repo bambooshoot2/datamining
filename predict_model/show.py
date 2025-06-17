@@ -7,7 +7,7 @@ pic_dir = 'pic'
 os.makedirs(pic_dir, exist_ok=True)
 
 # 读取日志数据
-df = pd.read_csv('training_log.csv')
+df = pd.read_csv('log/training_log.csv')
 
 # ================= 1. 损失曲线（训练&测试） =================
 plt.figure(figsize=(8,5))

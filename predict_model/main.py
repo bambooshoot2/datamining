@@ -82,7 +82,7 @@ def test(model, dataset, loss_fn, best_f1):
 
     if f1 > best_f1:
         best_f1 = f1
-        mindspore.save_checkpoint(model, "best_model.ckpt")
+        mindspore.save_checkpoint(model, "model/best_model.ckpt")
         print("\n保存了新的最佳模型(F1分数提升)")
 
     return test_loss, accuracy, f1, best_f1
@@ -100,7 +100,7 @@ def save_log_to_csv(epoch_log, filename):
 if __name__ == "__main__":
     # 数据加载和预处理
     pd.set_option('display.max_columns', None)
-    data = pd.read_csv('diabetes_prediction_dataset.csv')
+    data = pd.read_csv('dataset/diabetes_prediction_dataset.csv')
 
     # 特征工程和预处理
     gender_map = {'Female': 0, 'Male': 1, 'Other': 2}
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     scaler = MinMaxScaler()
     X_res[sclaer_columns] = scaler.fit_transform(X_res[sclaer_columns])
     # 保存归一化器
-    joblib.dump(scaler, 'scaler.pkl')
+    joblib.dump(scaler, 'model/scaler.pkl')
 
     # 分割训练集和测试集
     X_train, X_test, y_train, y_test = train_test_split(
@@ -182,7 +182,7 @@ if __name__ == "__main__":
             'test_f1': this_f1,
             'best_f1': best_f1_out,
         }
-        save_log_to_csv(epoch_log, 'training_log.csv')
+        save_log_to_csv(epoch_log, 'log/training_log.csv')
 
         # 早停检查
         if this_f1 > best_f1:

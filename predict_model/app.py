@@ -8,8 +8,8 @@ import joblib
 
 # ====== 加载模型和scaler ======
 model = ImprovedNetwork()
-mindspore.load_checkpoint("best_model.ckpt", net=model)
-scaler = joblib.load('scaler.pkl')  # <-- 用训练时保存的scaler！
+mindspore.load_checkpoint("model/best_model.ckpt", net=model)
+scaler = joblib.load('model/scaler.pkl')  # <-- 用训练时保存的scaler！
 
 sclaer_columns = ['age', 'bmi', 'HbA1c_level', 'blood_glucose_level']
 

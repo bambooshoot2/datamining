@@ -171,7 +171,7 @@ const onSubmit = async () => {
   const postData = { ...form.value }
   loading.value = true
   try {
-    const res = await fetch('http://127.0.0.1:8000/predict', {
+    const res = await fetch('http://115.120.45.100:8000/predict', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(postData)

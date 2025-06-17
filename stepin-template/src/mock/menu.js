@@ -3,20 +3,6 @@ import Mock from 'mockjs';
 const presetList = [
   {
     id: 1,
-    name: 'data-analysis',
-    title: '数据分析',
-    icon: 'AreaChartOutlined',
-    badge: '',
-    target: '_self',
-    path: '/data-analysis',
-    component: '@/pages/data-analysis',
-    renderMenu: true,
-    parent: null,
-    permission: null,
-    cacheable: true,
-  },
-  {
-    id: 2,
     name: 'model-display',
     title: '模型展示',
     icon: 'AppstoreOutlined',

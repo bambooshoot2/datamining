@@ -3,13 +3,16 @@ import { RouteRecordRaw } from 'vue-router';
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    name: 'data-analysis',
-    redirect: '/data-analysis',
+    redirect: '/model-display',
+  },
+  {
+    path: '/model-display',
+    name: '模型展示',
     meta: {
-      title: '数据分析界面',
-      renderMenu: false,
-      icon: 'CreditCardOutlined',
+      icon: 'AppstoreOutlined',
+      cacheable: true,
     },
+    component: () => import('@/pages/model-display'),
   },
   {
     path: '/front',
